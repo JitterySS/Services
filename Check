@@ -1,4 +1,4 @@
-# List of services to check
+# Services to check
 $services = @(
     "SysMain",
     "CDPUserSvc_*",
@@ -7,27 +7,31 @@ $services = @(
     "EventLog",
     "Schedule",
     "WSearch",
-    "BAM",
+    "Bam*",         # BAM/DAM service
     "DUSMsvc",
     "Appinfo"
 )
 
 # Function to get reliable service info
 function Get-ServiceInfo {
-    param ($serviceName)
+    param ($servicePattern)
 
-    # Get service objects with wildcard support
-    $svcObjects = Get-CimInstance Win32_Service -Filter "Name LIKE '$serviceName'" -ErrorAction SilentlyContinue
+    # Get all services matching pattern via Get-Service
+    $svcObjects = Get-Service -Name $servicePattern -ErrorAction SilentlyContinue
     if (!$svcObjects) { return @() }
 
     $results = @()
     foreach ($svc in $svcObjects) {
-        $results += [PSCustomObject]@{
-            ServiceName  = $svc.Name
-            DisplayName  = $svc.DisplayName
-            Status       = $svc.State
-            StartType    = $svc.StartMode
-            Executable   = $svc.PathName
+        # Get detailed info via CimInstance
+        $cimSvc = Get-CimInstance Win32_Service -Filter "Name='$($svc.Name)'" -ErrorAction SilentlyContinue
+        if ($cimSvc) {
+            $results += [PSCustomObject]@{
+                ServiceName  = $cimSvc.Name
+                DisplayName  = $cimSvc.DisplayName
+                Status       = $cimSvc.State
+                StartType    = $cimSvc.StartMode
+                Executable   = $cimSvc.PathName
+            }
         }
     }
     return $results
@@ -38,10 +42,10 @@ Write-Host "`n--- SERVICE STATUS SUMMARY ---`n"
 Write-Host ("{0,-25} | {1,-10}" -f "SERVICE", "STATUS")
 Write-Host ("{0,-25} | {1,-10}" -f "-------", "------")
 
-foreach ($svcName in $services) {
-    $svcDetails = Get-ServiceInfo $svcName
+foreach ($svcPattern in $services) {
+    $svcDetails = Get-ServiceInfo $svcPattern
     if (!$svcDetails) {
-        Write-Host ("{0,-25} | {1,-10}" -f $svcName, "Not Found")
+        Write-Host ("{0,-25} | {1,-10}" -f $svcPattern, "Not Found")
         continue
     }
     foreach ($svc in $svcDetails) {
@@ -51,10 +55,10 @@ foreach ($svcName in $services) {
 
 # --- Detailed info ---
 Write-Host "`n--- SERVICE DETAILS ---`n"
-foreach ($svcName in $services) {
-    $svcDetails = Get-ServiceInfo $svcName
+foreach ($svcPattern in $services) {
+    $svcDetails = Get-ServiceInfo $svcPattern
     if (!$svcDetails) {
-        Write-Host "$svcName : Not Found`n"
+        Write-Host "$svcPattern : Not Found`n"
         continue
     }
     foreach ($svc in $svcDetails) {
