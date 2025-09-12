@@ -12,17 +12,17 @@ $services = @(
     "Appinfo"
 )
 
-function Get-ServiceInfo {
+function Get-ServiceDetails {
     param ($serviceName)
-    
-    # Support wildcard for services like CDPUserSvc_*
+
+    # Get the service objects, supporting wildcards
     $serviceObjects = Get-CimInstance Win32_Service -Filter "Name LIKE '$serviceName'" -ErrorAction SilentlyContinue
-    if (!$serviceObjects) { return @() } # return empty array if not found
+    if (!$serviceObjects) { return @() }
 
     $results = @()
     foreach ($svc in $serviceObjects) {
-        $status = $svc.State
-        if ($status -eq "Running") {
+        # Determine start time
+        if ($svc.State -eq "Running") {
             try {
                 $proc = Get-Process -Id $svc.ProcessId -ErrorAction SilentlyContinue
                 $startTime = if ($proc) { $proc.StartTime } else { "Unknown" }
@@ -34,31 +34,36 @@ function Get-ServiceInfo {
         }
 
         $results += [PSCustomObject]@{
-            Name        = $svc.Name
-            DisplayName = $svc.DisplayName
-            Status      = $status
-            StartMode   = $svc.StartMode
-            ProcessId   = $svc.ProcessId
-            StartedAt   = $startTime
-            Path        = $svc.PathName
+            ServiceName  = $svc.Name
+            DisplayName  = $svc.DisplayName
+            Status       = $svc.State
+            StartType    = $svc.StartMode
+            ProcessID    = $svc.ProcessId
+            StartTime    = $startTime
+            Executable   = $svc.PathName
         }
     }
     return $results
 }
 
 function Show-Dashboard {
-    Write-Host "`n--- Service Dashboard ---`n"
+    Write-Host "`n--- Services Dashboard ---`n"
 
     foreach ($svcName in $services) {
-        $svcInfos = Get-ServiceInfo $svcName
+        $svcInfos = Get-ServiceDetails $svcName
         if (!$svcInfos) {
             Write-Host "$svcName : Not Found"
             continue
         }
         foreach ($svc in $svcInfos) {
-            # Compact single line per service
-            Write-Host ("{0,-20} | Status: {1,-10} | StartMode: {2,-8} | PID: {3,-6} | Started: {4}" -f `
-                $svc.Name, $svc.Status, $svc.StartMode, $svc.ProcessId, $svc.StartedAt)
+            Write-Host "----------------------------------------"
+            Write-Host "Service Name : $($svc.ServiceName)"
+            Write-Host "Display Name : $($svc.DisplayName)"
+            Write-Host "Status       : $($svc.Status)"
+            Write-Host "Start Type   : $($svc.StartType)"
+            Write-Host "Process ID   : $($svc.ProcessID)"
+            Write-Host "Start Time   : $($svc.StartTime)"
+            Write-Host "Executable   : $($svc.Executable)"
         }
     }
 
@@ -66,5 +71,5 @@ function Show-Dashboard {
     Read-Host
 }
 
-# Run dashboard
+# Run the dashboard
 Show-Dashboard
