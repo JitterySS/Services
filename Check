@@ -1,0 +1,55 @@
+# CODE CREATED USING CHATGPT, BUT CHECKED BY JITTERYSS
+# List of services to check
+$services = @(
+    "SysMain",
+    "CDPUserSvc",
+    "PcaSvc",
+    "DPS",
+    "EventLog",
+    "Schedule",    # Task Scheduler
+    "WSearch",     # SearchIndexer
+    "Bam",
+    "Dam",
+    "DusmSvc",
+    "Appinfo"
+)
+
+# Output file in Downloads
+$downloads = [Environment]::GetFolderPath("UserProfile") + "\Downloads\services.txt"
+
+# Collect results
+$results = foreach ($svc in $services) {
+    $matchedServices = Get-Service -Name "$svc*" -ErrorAction SilentlyContinue
+    if ($matchedServices) {
+        foreach ($service in $matchedServices) {
+            $config = Get-WmiObject Win32_Service -Filter "Name='$($service.Name)'" | Select-Object StartMode
+            $process = Get-Process -Id $service.Id -ErrorAction SilentlyContinue
+            $startTime = $process.StartTime.ToString("yyyy-MM-dd HH:mm:ss") 2>$null
+
+            [PSCustomObject]@{
+                Service     = $service.Name
+                DisplayName = $service.DisplayName
+                Status      = $service.Status
+                StartupType = $config.StartMode
+                StartedAt   = if ($startTime) { $startTime } else { "N/A" }
+            }
+        }
+    } else {
+        [PSCustomObject]@{
+            Service     = $svc
+            DisplayName = "Not Found"
+            Status      = "N/A"
+            StartupType = "N/A"
+            StartedAt   = "N/A"
+        }
+    }
+}
+
+# Write results to file
+$results | Format-Table -AutoSize | Out-String | Set-Content -Path $downloads
+
+# Open the file in Notepad
+Start-Process notepad.exe $downloads
+
+# Close current PowerShell window
+Stop-Process -Id $PID
