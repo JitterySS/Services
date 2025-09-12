@@ -1,26 +1,25 @@
-# Service list
-$services = @{
-    1 = "SysMain"
-    2 = "CDPUserSvc_*"
-    3 = "PcaSvc"
-    4 = "DPS"
-    5 = "EventLog"
-    6 = "Schedule"
-    7 = "WSearch"         # SearchIndexer
-    8 = "BAM"             # BAM/DAM
-    9 = "DUSMsvc"         # Dusmsvc
-    10 = "Appinfo"
-}
+# List of services to check
+$services = @(
+    "SysMain",
+    "CDPUserSvc_*",
+    "PcaSvc",
+    "DPS",
+    "EventLog",
+    "Schedule",
+    "WSearch",      # SearchIndexer
+    "BAM",          # BAM/DAM
+    "DUSMsvc",
+    "Appinfo"
+)
 
 function Get-ServiceInfo {
-    param ($serviceName, $detailed=$false)
+    param ($serviceName)
     
+    # Support wildcard for services like CDPUserSvc_*
     $serviceObjects = Get-CimInstance Win32_Service -Filter "Name LIKE '$serviceName'" -ErrorAction SilentlyContinue
-    if (!$serviceObjects) {
-        Write-Host "$serviceName : Not Found"
-        return
-    }
+    if (!$serviceObjects) { return @() } # return empty array if not found
 
+    $results = @()
     foreach ($svc in $serviceObjects) {
         $status = $svc.State
         if ($status -eq "Running") {
@@ -34,46 +33,38 @@ function Get-ServiceInfo {
             $startTime = "Not running"
         }
 
-        if ($detailed) {
-            Write-Host "----------------------------------------"
-            Write-Host "Service Name     : $($svc.Name)"
-            Write-Host "Display Name     : $($svc.DisplayName)"
-            Write-Host "Status           : $status"
-            Write-Host "Start Mode       : $($svc.StartMode)"
-            Write-Host "Process ID       : $($svc.ProcessId)"
-            Write-Host "Started At       : $startTime"
-            Write-Host "Executable Path  : $($svc.PathName)"
-        } else {
-            Write-Host "$($svc.Name) : $status, Started: $startTime"
+        $results += [PSCustomObject]@{
+            Name        = $svc.Name
+            DisplayName = $svc.DisplayName
+            Status      = $status
+            StartMode   = $svc.StartMode
+            ProcessId   = $svc.ProcessId
+            StartedAt   = $startTime
+            Path        = $svc.PathName
         }
     }
+    return $results
 }
 
 function Show-Dashboard {
-    while ($true) {
-        Write-Host "`n--- Service Dashboard ---"
-        foreach ($key in $services.Keys) {
-            Write-Host "$key. $($services[$key])"
-        }
-        Write-Host "0. Exit"
+    Write-Host "`n--- Service Dashboard ---`n"
 
-        $choice = Read-Host "Enter number for more info"
-        if ($choice -eq '0') { break }
-        if ($services.ContainsKey([int]$choice)) {
-            $serviceName = $services[[int]$choice]
-            Write-Host "`nDetails for $serviceName`n"
-            Get-ServiceInfo $serviceName $true
-        } else {
-            Write-Host "Invalid choice, try again."
+    foreach ($svcName in $services) {
+        $svcInfos = Get-ServiceInfo $svcName
+        if (!$svcInfos) {
+            Write-Host "$svcName : Not Found"
+            continue
+        }
+        foreach ($svc in $svcInfos) {
+            # Compact single line per service
+            Write-Host ("{0,-20} | Status: {1,-10} | StartMode: {2,-8} | PID: {3,-6} | Started: {4}" -f `
+                $svc.Name, $svc.Status, $svc.StartMode, $svc.ProcessId, $svc.StartedAt)
         }
     }
+
+    Write-Host "`nPress Enter to close..."
+    Read-Host
 }
 
-# Main loop
-Write-Host "`nChecking services status..."
-foreach ($svc in $services.Values) {
-    Get-ServiceInfo $svc
-}
-
-# Launch dashboard
+# Run dashboard
 Show-Dashboard
