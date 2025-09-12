@@ -1,5 +1,5 @@
-# Services to check
-$services = @(
+# Services to check (patterns)
+$servicePatterns = @(
     "SysMain",
     "CDPUserSvc_*",
     "PcaSvc",
@@ -7,22 +7,23 @@ $services = @(
     "EventLog",
     "Schedule",
     "WSearch",
-    "Bam*",         # BAM/DAM service
+    "Bam*",
     "DUSMsvc",
     "Appinfo"
 )
 
-# Function to get reliable service info
-function Get-ServiceInfo {
-    param ($servicePattern)
+# Get all services once
+$allServices = Get-Service
 
-    # Get all services matching pattern via Get-Service
-    $svcObjects = Get-Service -Name $servicePattern -ErrorAction SilentlyContinue
-    if (!$svcObjects) { return @() }
+function Get-ServiceInfoReliable {
+    param ($pattern)
+
+    # Find services matching the pattern
+    $matchingServices = $allServices | Where-Object { $_.Name -like $pattern }
+    if (!$matchingServices) { return @() }
 
     $results = @()
-    foreach ($svc in $svcObjects) {
-        # Get detailed info via CimInstance
+    foreach ($svc in $matchingServices) {
         $cimSvc = Get-CimInstance Win32_Service -Filter "Name='$($svc.Name)'" -ErrorAction SilentlyContinue
         if ($cimSvc) {
             $results += [PSCustomObject]@{
@@ -42,10 +43,10 @@ Write-Host "`n--- SERVICE STATUS SUMMARY ---`n"
 Write-Host ("{0,-25} | {1,-10}" -f "SERVICE", "STATUS")
 Write-Host ("{0,-25} | {1,-10}" -f "-------", "------")
 
-foreach ($svcPattern in $services) {
-    $svcDetails = Get-ServiceInfo $svcPattern
+foreach ($pattern in $servicePatterns) {
+    $svcDetails = Get-ServiceInfoReliable $pattern
     if (!$svcDetails) {
-        Write-Host ("{0,-25} | {1,-10}" -f $svcPattern, "Not Found")
+        Write-Host ("{0,-25} | {1,-10}" -f $pattern, "Not Found")
         continue
     }
     foreach ($svc in $svcDetails) {
@@ -55,10 +56,10 @@ foreach ($svcPattern in $services) {
 
 # --- Detailed info ---
 Write-Host "`n--- SERVICE DETAILS ---`n"
-foreach ($svcPattern in $services) {
-    $svcDetails = Get-ServiceInfo $svcPattern
+foreach ($pattern in $servicePatterns) {
+    $svcDetails = Get-ServiceInfoReliable $pattern
     if (!$svcDetails) {
-        Write-Host "$svcPattern : Not Found`n"
+        Write-Host "$pattern : Not Found`n"
         continue
     }
     foreach ($svc in $svcDetails) {
