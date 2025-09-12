@@ -1,4 +1,6 @@
-# CODE CREATED USING CHATGPT, BUT CHECKED BY JITTERYSS
+# MADE BY CHATGPT
+# Script to check status, startup type, and start time of specific Windows services
+
 # List of services to check
 $services = @(
     "SysMain",
@@ -19,22 +21,31 @@ $downloads = [Environment]::GetFolderPath("UserProfile") + "\Downloads\services.
 
 # Collect results
 $results = foreach ($svc in $services) {
-    $matchedServices = Get-Service -Name "$svc*" -ErrorAction SilentlyContinue
+    # Get all matching services (handles dynamic names like CDPUserSvc_*)
+    $matchedServices = Get-Service | Where-Object { $_.Name -like "$svc*" }
     if ($matchedServices) {
         foreach ($service in $matchedServices) {
-            $config = Get-WmiObject Win32_Service -Filter "Name='$($service.Name)'" | Select-Object StartMode
-            $process = Get-Process -Id $service.Id -ErrorAction SilentlyContinue
-            $startTime = $process.StartTime.ToString("yyyy-MM-dd HH:mm:ss") 2>$null
+            # Get startup type
+            $config = Get-WmiObject Win32_Service -Filter "Name='$($service.Name)'" | Select-Object -ExpandProperty StartMode
 
+            # Get start time safely
+            try {
+                $startTime = (Get-Process -Id $service.Id -ErrorAction Stop).StartTime.ToString("yyyy-MM-dd HH:mm:ss")
+            } catch {
+                $startTime = "N/A"
+            }
+
+            # Output object
             [PSCustomObject]@{
                 Service     = $service.Name
                 DisplayName = $service.DisplayName
                 Status      = $service.Status
-                StartupType = $config.StartMode
-                StartedAt   = if ($startTime) { $startTime } else { "N/A" }
+                StartupType = $config
+                StartedAt   = $startTime
             }
         }
     } else {
+        # If no service found
         [PSCustomObject]@{
             Service     = $svc
             DisplayName = "Not Found"
@@ -48,7 +59,7 @@ $results = foreach ($svc in $services) {
 # Write results to file
 $results | Format-Table -AutoSize | Out-String | Set-Content -Path $downloads
 
-# Open the file in Notepad
+# Open in Notepad
 Start-Process notepad.exe $downloads
 
 # Close current PowerShell window
