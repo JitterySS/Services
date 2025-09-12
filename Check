@@ -1,13 +1,13 @@
-# Services to check (patterns)
-$servicePatterns = @(
+# Patterns to match
+$patterns = @(
     "SysMain",
-    "CDPUserSvc_*",
+    "CDPUserSvc",
     "PcaSvc",
     "DPS",
     "EventLog",
     "Schedule",
     "WSearch",
-    "Bam*",
+    "Bam",
     "DUSMsvc",
     "Appinfo"
 )
@@ -15,11 +15,11 @@ $servicePatterns = @(
 # Get all services once
 $allServices = Get-Service
 
-function Get-ServiceInfoReliable {
+function Get-ServiceInfo {
     param ($pattern)
 
-    # Find services matching the pattern
-    $matchingServices = $allServices | Where-Object { $_.Name -like $pattern }
+    # Find all services where Name OR DisplayName matches pattern (case-insensitive)
+    $matchingServices = $allServices | Where-Object { $_.Name -match $pattern -or $_.DisplayName -match $pattern }
     if (!$matchingServices) { return @() }
 
     $results = @()
@@ -43,8 +43,8 @@ Write-Host "`n--- SERVICE STATUS SUMMARY ---`n"
 Write-Host ("{0,-25} | {1,-10}" -f "SERVICE", "STATUS")
 Write-Host ("{0,-25} | {1,-10}" -f "-------", "------")
 
-foreach ($pattern in $servicePatterns) {
-    $svcDetails = Get-ServiceInfoReliable $pattern
+foreach ($pattern in $patterns) {
+    $svcDetails = Get-ServiceInfo $pattern
     if (!$svcDetails) {
         Write-Host ("{0,-25} | {1,-10}" -f $pattern, "Not Found")
         continue
@@ -56,8 +56,8 @@ foreach ($pattern in $servicePatterns) {
 
 # --- Detailed info ---
 Write-Host "`n--- SERVICE DETAILS ---`n"
-foreach ($pattern in $servicePatterns) {
-    $svcDetails = Get-ServiceInfoReliable $pattern
+foreach ($pattern in $patterns) {
+    $svcDetails = Get-ServiceInfo $pattern
     if (!$svcDetails) {
         Write-Host "$pattern : Not Found`n"
         continue
