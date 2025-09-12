@@ -13,26 +13,39 @@ $services = @{
 }
 
 function Get-ServiceInfo {
-    param ($serviceName)
-    # Support wildcard for CDPUserSvc_*
-    $serviceObjects = Get-Service -Name $serviceName -ErrorAction SilentlyContinue
+    param ($serviceName, $detailed=$false)
+    
+    $serviceObjects = Get-CimInstance Win32_Service -Filter "Name LIKE '$serviceName'" -ErrorAction SilentlyContinue
     if (!$serviceObjects) {
         Write-Host "$serviceName : Not Found"
         return
     }
 
     foreach ($svc in $serviceObjects) {
-        $status = $svc.Status
-        $startTime = if ($status -eq 'Running') {
+        $status = $svc.State
+        if ($status -eq "Running") {
             try {
-                (Get-CimInstance Win32_Service -Filter "Name='$($svc.Name)'").StartTime
+                $proc = Get-Process -Id $svc.ProcessId -ErrorAction SilentlyContinue
+                $startTime = if ($proc) { $proc.StartTime } else { "Unknown" }
             } catch {
-                "Unknown"
+                $startTime = "Unknown"
             }
         } else {
-            "Not running"
+            $startTime = "Not running"
         }
-        Write-Host "$($svc.Name) : $status, Started: $startTime"
+
+        if ($detailed) {
+            Write-Host "----------------------------------------"
+            Write-Host "Service Name     : $($svc.Name)"
+            Write-Host "Display Name     : $($svc.DisplayName)"
+            Write-Host "Status           : $status"
+            Write-Host "Start Mode       : $($svc.StartMode)"
+            Write-Host "Process ID       : $($svc.ProcessId)"
+            Write-Host "Started At       : $startTime"
+            Write-Host "Executable Path  : $($svc.PathName)"
+        } else {
+            Write-Host "$($svc.Name) : $status, Started: $startTime"
+        }
     }
 }
 
@@ -49,7 +62,7 @@ function Show-Dashboard {
         if ($services.ContainsKey([int]$choice)) {
             $serviceName = $services[[int]$choice]
             Write-Host "`nDetails for $serviceName`n"
-            Get-ServiceInfo $serviceName
+            Get-ServiceInfo $serviceName $true
         } else {
             Write-Host "Invalid choice, try again."
         }
