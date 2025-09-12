@@ -1,69 +1,66 @@
-# MADE BY CHATGPT
-# Console-only Windows service checker
+# Service list
+$services = @{
+    1 = "SysMain"
+    2 = "CDPUserSvc_*"
+    3 = "PcaSvc"
+    4 = "DPS"
+    5 = "EventLog"
+    6 = "Schedule"
+    7 = "WSearch"         # SearchIndexer
+    8 = "BAM"             # BAM/DAM
+    9 = "DUSMsvc"         # Dusmsvc
+    10 = "Appinfo"
+}
 
-Write-Host "Starting service check..." -ForegroundColor Cyan
+function Get-ServiceInfo {
+    param ($serviceName)
+    # Support wildcard for CDPUserSvc_*
+    $serviceObjects = Get-Service -Name $serviceName -ErrorAction SilentlyContinue
+    if (!$serviceObjects) {
+        Write-Host "$serviceName : Not Found"
+        return
+    }
 
-$services = @(
-    "SysMain",
-    "CDPUserSvc",
-    "PcaSvc",
-    "DPS",
-    "EventLog",
-    "Schedule",    # Task Scheduler
-    "WSearch",     # SearchIndexer
-    "Bam",
-    "Dam",
-    "DusmSvc",
-    "Appinfo"
-)
-
-$results = @()
-
-foreach ($svc in $services) {
-    Write-Host "Checking service pattern: $svc*" -ForegroundColor Yellow
-    $matchedServices = Get-WmiObject Win32_Service | Where-Object { $_.Name -like "$svc*" }
-
-    if ($matchedServices) {
-        foreach ($service in $matchedServices) {
-            # Get status and startup type
-            $status = $service.State
-            $startup = $service.StartMode
-
-            # CreationDate may be null if service not running
-            $startedAt = if ($status -eq "Running") { 
-                try { [Management.ManagementDateTimeConverter]::ToDateTime($service.CreationDate) } 
-                catch { "N/A" } 
-            } else { "N/A" }
-
-            $results += [PSCustomObject]@{
-                Service     = $service.Name
-                DisplayName = $service.DisplayName
-                Status      = $status
-                StartupType = $startup
-                StartedAt   = $startedAt
+    foreach ($svc in $serviceObjects) {
+        $status = $svc.Status
+        $startTime = if ($status -eq 'Running') {
+            try {
+                (Get-CimInstance Win32_Service -Filter "Name='$($svc.Name)'").StartTime
+            } catch {
+                "Unknown"
             }
+        } else {
+            "Not running"
         }
-    } else {
-        $results += [PSCustomObject]@{
-            Service     = $svc
-            DisplayName = "Not Found"
-            Status      = "N/A"
-            StartupType = "N/A"
-            StartedAt   = "N/A"
+        Write-Host "$($svc.Name) : $status, Started: $startTime"
+    }
+}
+
+function Show-Dashboard {
+    while ($true) {
+        Write-Host "`n--- Service Dashboard ---"
+        foreach ($key in $services.Keys) {
+            Write-Host "$key. $($services[$key])"
+        }
+        Write-Host "0. Exit"
+
+        $choice = Read-Host "Enter number for more info"
+        if ($choice -eq '0') { break }
+        if ($services.ContainsKey([int]$choice)) {
+            $serviceName = $services[[int]$choice]
+            Write-Host "`nDetails for $serviceName`n"
+            Get-ServiceInfo $serviceName
+        } else {
+            Write-Host "Invalid choice, try again."
         }
     }
 }
 
-# Output table with color-coded statuses
-Write-Host "`n===== Windows Service Report =====`n" -ForegroundColor Green
-
-foreach ($r in $results) {
-    $color = switch ($r.Status) {
-        "Running" { "Green" }
-        "Stopped" { "Red" }
-        default   { "Yellow" }
-    }
-    Write-Host ("{0,-25} {1,-40} {2,-10} {3,-10} {4}" -f $r.Service, $r.DisplayName, $r.Status, $r.StartupType, $r.StartedAt) -ForegroundColor $color
+# Main loop
+Write-Host "`nChecking services status..."
+foreach ($svc in $services.Values) {
+    Get-ServiceInfo $svc
 }
 
-Write-Host "`nService check complete!" -ForegroundColor Cyan
+# Launch dashboard
+Show-Dashboard
