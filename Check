@@ -1,5 +1,5 @@
 # MADE BY CHATGPT
-# Clean console-based Windows service checker
+# Console-only Windows service checker
 
 Write-Host "Starting service check..." -ForegroundColor Cyan
 
@@ -25,10 +25,10 @@ foreach ($svc in $services) {
 
     if ($matchedServices) {
         foreach ($service in $matchedServices) {
-            # Status: Running / Stopped
+            # Get status and startup type
             $status = $service.State
-            # StartupType: Auto / Manual / Disabled
             $startup = $service.StartMode
+
             # CreationDate may be null if service not running
             $startedAt = if ($status -eq "Running") { 
                 try { [Management.ManagementDateTimeConverter]::ToDateTime($service.CreationDate) } 
@@ -54,7 +54,7 @@ foreach ($svc in $services) {
     }
 }
 
-# Output table with color-coded status
+# Output table with color-coded statuses
 Write-Host "`n===== Windows Service Report =====`n" -ForegroundColor Green
 
 foreach ($r in $results) {
