@@ -1,4 +1,4 @@
 # HOW TO USE
 # PUT THE COMMAND ON THE NEXT LINE INTO POWERSHELL
-# powershell -ExecutionPolicy Bypass -Command "irm 'https://raw.githubusercontent.com/JitterySS/Services/main/check-services.ps1' | iex"
+# powershell -ExecutionPolicy Bypass -Command "irm 'https://raw.githubusercontent.com/JitterySS/Services/main/Check' | iex"
 # YOUR DONE!!!
