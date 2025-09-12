@@ -1,7 +1,8 @@
 # MADE BY CHATGPT
 # Script to check status, startup type, and start time of specific Windows services
 
-# List of services to check
+Write-Host "Starting service check..." -ForegroundColor Cyan
+
 $services = @(
     "SysMain",
     "CDPUserSvc",
@@ -16,16 +17,13 @@ $services = @(
     "Appinfo"
 )
 
-# Output file in Downloads
-$downloads = [Environment]::GetFolderPath("UserProfile") + "\Downloads\services.txt"
-
-# Collect results
 $results = foreach ($svc in $services) {
-    # Get all matching services (handles dynamic names like CDPUserSvc_*)
+    Write-Host "Checking service: $svc" -ForegroundColor Yellow
     $matchedServices = Get-Service | Where-Object { $_.Name -like "$svc*" }
+
     if ($matchedServices) {
         foreach ($service in $matchedServices) {
-            # Get startup type
+            # Get startup type safely
             $config = Get-WmiObject Win32_Service -Filter "Name='$($service.Name)'" | Select-Object -ExpandProperty StartMode
 
             # Get start time safely
@@ -35,7 +33,6 @@ $results = foreach ($svc in $services) {
                 $startTime = "N/A"
             }
 
-            # Output object
             [PSCustomObject]@{
                 Service     = $service.Name
                 DisplayName = $service.DisplayName
@@ -45,7 +42,6 @@ $results = foreach ($svc in $services) {
             }
         }
     } else {
-        # If no service found
         [PSCustomObject]@{
             Service     = $svc
             DisplayName = "Not Found"
@@ -56,11 +52,7 @@ $results = foreach ($svc in $services) {
     }
 }
 
-# Write results to file
-$results | Format-Table -AutoSize | Out-String | Set-Content -Path $downloads
-
-# Open in Notepad
-Start-Process notepad.exe $downloads
-
-# Close current PowerShell window
-Stop-Process -Id $PID
+# Output table cleanly in console
+Write-Host "`n===== Service Status Report =====`n" -ForegroundColor Green
+$results | Format-Table -AutoSize
+Write-Host "`nDone!" -ForegroundColor Cyan
