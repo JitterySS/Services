@@ -1,6 +1,7 @@
 HOW TO USE:
 
 RUN THE FOLLOWING COMMAND IN CMD AS ADMIN:
+
 powershell Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass && powershell Invoke-Expression (Invoke-RestMethod https://raw.githubusercontent.com/JitterySS/services/main/Check)
 
 THIS COMMAND IS EFFECTIVE FOR SCREENSHARING IN ANY MINECRAFT RELATED SERVER
