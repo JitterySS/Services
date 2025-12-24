@@ -80,4 +80,4 @@ if (Test-Path $consoleHistoryPath) {
     Write-Host "  Not Found" -ForegroundColor Green
 }
 
-Write-Host "`nCheck Complete, hit up @praiselily if u run into any issues." -ForegroundColor Cyan
+Write-Host "`nCheck Complete, Credit to @praiselily for the creation of this script!" -ForegroundColor Cyan
