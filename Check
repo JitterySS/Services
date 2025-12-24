@@ -28,51 +28,27 @@ Write-Host ""
 Write-Host "`nSERVICE STATUS" -ForegroundColor Cyan
 
 $services = @(
-    @{Name = "SysMain"; DisplayName = "SysMain"},
-    @{Name = "PcaSvc"; DisplayName = "Program Compatibility Assistant Service"},
-    @{Name = "DPS"; DisplayName = "Diagnostic Policy Service"},
-    @{Name = "EventLog"; DisplayName = "Windows Event Log"},
-    @{Name = "Schedule"; DisplayName = "Task Scheduler"},
-    @{Name = "Bam"; DisplayName = "Background Activity Moderator"},
-    @{Name = "Dusmsvc"; DisplayName = "Data Usage"},
-    @{Name = "Appinfo"; DisplayName = "Application Information"},
-    @{Name = "CDPSvc"; DisplayName = "Connected Devices Platform Service"},
-    @{Name = "DcomLaunch"; DisplayName = "DCOM Server Process Launcher"},
-    @{Name = "PlugPlay"; DisplayName = "Plug and Play"},
-    @{Name = "wsearch"; DisplayName = "Windows Search"}
+    @{Name="SysMain"},
+    @{Name="PcaSvc"},
+    @{Name="DPS"},
+    @{Name="EventLog"},
+    @{Name="Schedule"},
+    @{Name="Bam"},
+    @{Name="Dusmsvc"},
+    @{Name="Appinfo"},
+    @{Name="CDPSvc"},
+    @{Name="DcomLaunch"},
+    @{Name="PlugPlay"},
+    @{Name="wsearch"}
 )
 
 foreach ($svc in $services) {
     $service = Get-Service -Name $svc.Name -ErrorAction SilentlyContinue
     if ($service) {
         if ($service.Status -eq "Running") {
-            $displayName = $service.DisplayName
-            if ($displayName.Length -gt 40) {
-                $displayName = $displayName.Substring(0, 37) + "..."
-            }
-            Write-Host ("  {0,-12} {1,-40}" -f $svc.Name, $displayName) -ForegroundColor Green -NoNewline
-
-            if ($svc.Name -eq "Bam") {
-                Write-Host " | Enabled" -ForegroundColor Yellow
-            } else {
-                try {
-                    $process = Get-CimInstance Win32_Service -Filter "Name='$($svc.Name)'" | Select-Object ProcessId
-                    if ($process.ProcessId -gt 0) {
-                        $proc = Get-Process -Id $process.ProcessId -ErrorAction SilentlyContinue
-                        if ($proc) {
-                            Write-Host (" | {0}" -f $proc.StartTime.ToString("HH:mm:ss")) -ForegroundColor Yellow
-                        } else {
-                            Write-Host " | N/A" -ForegroundColor Yellow
-                        }
-                    } else {
-                        Write-Host " | N/A" -ForegroundColor Yellow
-                    }
-                } catch {
-                    Write-Host " | N/A" -ForegroundColor Yellow
-                }
-            }
+            Write-Host ("  {0,-12} Running" -f $svc.Name) -ForegroundColor Green
         } else {
-            Write-Host ("  {0,-12} {1,-40} {2}" -f $svc.Name, $service.DisplayName, $service.Status) -ForegroundColor Red
+            Write-Host ("  {0,-12} {1}" -f $svc.Name, $service.Status) -ForegroundColor Red
         }
     }
 }
@@ -80,21 +56,17 @@ foreach ($svc in $services) {
 Write-Host "`nREGISTRY" -ForegroundColor Cyan
 
 $settings = @(
-    @{ Name = "CMD"; Path = "HKCU:\Software\Policies\Microsoft\Windows\System"; Key = "DisableCMD"; Warning = "Disabled"; Safe = "Available" },
-    @{ Name = "PowerShell Logging"; Path = "HKLM:\SOFTWARE\Policies\Microsoft\Windows\PowerShell\ScriptBlockLogging"; Key = "EnableScriptBlockLogging"; Warning = "Disabled"; Safe = "Enabled" },
-    @{ Name = "Activities Cache"; Path = "HKLM:\SOFTWARE\Policies\Microsoft\Windows\System"; Key = "EnableActivityFeed"; Warning = "Disabled"; Safe = "Enabled" },
-    @{ Name = "Prefetch Enabled"; Path = "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management\PrefetchParameters"; Key = "EnablePrefetcher"; Warning = "Disabled"; Safe = "Enabled" }
+    @{ Name="CMD"; Path="HKCU:\Software\Policies\Microsoft\Windows\System"; Key="DisableCMD"; Bad=0 },
+    @{ Name="PowerShell Logging"; Path="HKLM:\SOFTWARE\Policies\Microsoft\Windows\PowerShell\ScriptBlockLogging"; Key="EnableScriptBlockLogging"; Bad=1 },
+    @{ Name="Activities Cache"; Path="HKLM:\SOFTWARE\Policies\Microsoft\Windows\System"; Key="EnableActivityFeed"; Bad=1 }
 )
 
 foreach ($s in $settings) {
-    $status = Get-ItemProperty -Path $s.Path -Name $s.Key -ErrorAction SilentlyContinue
-    Write-Host "  " -NoNewline
-    if ($status -and $status.$($s.Key) -eq 0) {
-        Write-Host "$($s.Name): " -NoNewline -ForegroundColor White
-        Write-Host "$($s.Warning)" -ForegroundColor Red
+    $val = Get-ItemProperty -Path $s.Path -Name $s.Key -ErrorAction SilentlyContinue
+    if ($val -and $val.$($s.Key) -eq $s.Bad) {
+        Write-Host "  $($s.Name): Flagged" -ForegroundColor Red
     } else {
-        Write-Host "$($s.Name): " -NoNewline -ForegroundColor White
-        Write-Host "$($s.Safe)" -ForegroundColor Green
+        Write-Host "  $($s.Name): OK" -ForegroundColor Green
     }
 }
 
@@ -102,10 +74,10 @@ $consoleHistoryPath = "$env:USERPROFILE\AppData\Roaming\Microsoft\Windows\PowerS
 Write-Host "`nConsole Host History" -ForegroundColor Cyan
 
 if (Test-Path $consoleHistoryPath) {
-    $historyFile = Get-Item -Path $consoleHistoryPath -Force
-    Write-Host "  Last Modified: $($historyFile.LastWriteTime.ToString("yyyy-MM-dd HH:mm:ss"))" -ForegroundColor Yellow
+    $history = Get-Item $consoleHistoryPath -Force
+    Write-Host "  Last Modified: $($history.LastWriteTime)" -ForegroundColor Yellow
 } else {
-    Write-Host "  Console history not found" -ForegroundColor Green
+    Write-Host "  Not Found" -ForegroundColor Green
 }
 
 Write-Host "`nCheck Complete, hit up @praiselily if u run into any issues." -ForegroundColor Cyan
